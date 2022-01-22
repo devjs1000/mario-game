@@ -2,20 +2,48 @@ import './style.css'
 import platform from './imgs/platform.png'
 import background from './imgs/bg-11.jpg'
 import cloud from './imgs/cloud.png'
+import pillar from './imgs/pillar.png'
+import jumpSprite from './sprite/Punk_jump.png'
+import standingSprite from './sprite/Punk_idle.png'
+import runSprite from './sprite/Punk_run.png'
+
 const canvas=document.querySelector('#canvas')
 
 canvas.width=innerWidth
 canvas.height=innerHeight
 const c=canvas.getContext('2d')
 const gravity=2;
+function createImg(src){
+  let img=new Image()
+  img.src=src
+  return img
+}
 class Player{
   constructor(){
     this.position={
       x:100,
       y:0
     }
-    this.width=30
-    this.height=30
+    this.image=new Image()
+    this.image.src=standingSprite
+    this.width=66
+    this.height=150
+    this.frames=1
+    this.speed=5
+    this.jump=20
+    this.finish=false
+    this.sprites={
+      stand:{
+        img:standingSprite
+      },
+      run:{
+        img:runSprite
+      },
+      jump:{
+        img:jumpSprite
+      }
+    }
+    this.activeSprite=this.sprites.stand.img
     this.velocity={
       x:0,
       y:.1
@@ -23,20 +51,26 @@ class Player{
   }
 
   draw(){
-    c.fillStyle='red'
-    c.fillRect(this.position.x, this.position.y, this.width, this.height)
-
+if (!this.finish) {
+  c.drawImage(createImg(this.activeSprite),48*this.frames, 0,48, 48, this.position.x, this.position.y, this.width, this.height)
+}else{
+  c.font = "60px Arial";
+c.fillText("You Won", canvas.width/2-30, canvas.height/2-30)
+}
   }
   update(){
+    this.frames++
     this.draw()
-   
+if(this.frames>3){
+  this.frames=1
+}
       this.position.x+=this.velocity.x
           this.position.y+=this.velocity.y
 
     if(this.position.y+this.height+this.velocity.y<=canvas.height){
       this.velocity.y+=gravity
     }else if(this.position.y>canvas.height){
-      console.log('you lost')
+      this.position.x=100
       this.velocity.y=0
       this.position.y=0
     }
@@ -48,7 +82,7 @@ class Platform{
     this.position={
       x,y
     }
-    
+
     this.image=new Image()
     this.image.src=img
     this.width=this.image.width
@@ -65,7 +99,7 @@ class Decor{
     this.position={
       x,y
     }
-    
+
     this.image=new Image()
     this.image.src=img
     this.width=this.image.width
@@ -84,7 +118,17 @@ const decors=[
 const clouds=[
   new Decor({x:0, y:0, img:cloud})
 ]
-const platforms=[new Platform({x:0,y:innerHeight-20, img:platform}), new Platform({x:250, y:500, img:platform}), new Platform({x:500,y:550, img:platform})]
+const platforms=[new Platform({x:0,y:innerHeight-20, img:platform})]
+
+//adding land
+  for (let i=1;i<5;i++){
+    platforms.push(new Platform({x:i*250, y:Math.random()*(500-400)+400, img:platform}), new Platform({x:i*250+500,y:Math.random()*(550), img:platform}))
+  }
+
+  for (let i=6;i<12;i++){
+    platforms.push(new Platform({x:i*250, y:Math.random()*(550-450)+450, img:pillar}))
+
+  }
 const keys={
   right:{
     pressed:false
@@ -101,7 +145,7 @@ function animate(){
    decors.forEach(decor=>{
         decor.draw()
       })
-  
+
       platforms.forEach(platform=>{
         platform.draw()
       })
@@ -111,30 +155,29 @@ function animate(){
         cloud.draw()
       })
 
-
    if(keys.right.pressed && player.position.x<=400){
-    player.velocity.x=5
-    scrollOffset+=5
+    player.velocity.x=player.speed
+    scrollOffset+=player.speed
    }else if(keys.left.pressed && player.position.x>=100){
-    player.velocity.x=-5
-    scrollOffset-=5
+    player.velocity.x=-player.speed
+    scrollOffset-=player.speed
    }else{
     player.velocity.x=0
     if (keys.right.pressed) {
       platforms.forEach(platform=>{
-         platform.position.x-=5
-         scrollOffset+=5
+         platform.position.x-=player.speed
+         scrollOffset+=player.speed
       })
      clouds.forEach(cloud=>{
-        cloud.position.x-=5
+        cloud.position.x-=player.speed
       })
     }else if (keys.left.pressed) {
      platforms.forEach(platform=>{
-       platform.position.x+=5
-       scrollOffset-=5
+       platform.position.x+=player.speed
+       scrollOffset-=player.speed
       })
      clouds.forEach(cloud=>{
-        cloud.position.x+=5
+        cloud.position.x+=player.speed
       })
     }
    }
@@ -143,10 +186,14 @@ function animate(){
   platforms.forEach(platform=>{
     if (player.position.y+player.height<=platform.position.y && player.position.y+player.height+player.velocity.y>=platform.position.y && player.position.x>=platform.position.x && player.position.x<platform.position.x+platform.width) {
       player.velocity.y=0
-    }      
-  }) 
-  if (scrollOffset>2000) {
-    console.log('win')
+    }
+  })
+
+  //win scenario
+  if (scrollOffset>10000) {
+    player.finish=true
+  }else{
+    player.finish=false
   }
 }
 
@@ -155,19 +202,20 @@ animate()
 addEventListener('keydown',({keyCode})=>{
   switch(keyCode){
     case 65:
-      console.log('left')
       keys.left.pressed=true
+      player.activeSprite=player.sprites.run.img
     break;
     case 83:
-      console.log('down')
     break;
      case 68:
-      console.log('right')
       keys.right.pressed=true
+      player.activeSprite=player.sprites.run.img
+
     break;
      case 87:
-      console.log('up')
-      player.velocity.y-=20
+      player.velocity.y-=player.jump
+      player.activeSprite=player.sprites.jump.img
+
     break;
   }
 })
@@ -175,19 +223,20 @@ addEventListener('keydown',({keyCode})=>{
 addEventListener('keyup',({keyCode})=>{
   switch(keyCode){
     case 65:
-      console.log('left')
       keys.left.pressed=false
+      player.activeSprite=player.sprites.stand.img
+
     break;
     case 83:
-      console.log('down')
     break;
      case 68:
-      console.log('right')
       keys.right.pressed=false
+      player.activeSprite=player.sprites.stand.img
+
     break;
      case 87:
-      console.log('up')
-      player.velocity.y-=0
+     player.activeSprite=player.sprites.stand.img
+
     break;
   }
 })
